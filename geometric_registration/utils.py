@@ -1,13 +1,17 @@
+"""useful functions for geometric registration"""
 import os
-import open3d
+import time
 import numpy as np
-
+import open3d
+import evaluate_ppfnet
 
 def get_pcd(pcdpath, filename):
-    return open3d.read_point_cloud(os.path.join(pcdpath, filename + '.ply'))
+    """load point cloud from file"""
+    return open3d.io.read_point_cloud(os.path.join(pcdpath, filename + '.ply'))
 
 
 def get_keypts(keyptspath, filename):
+    """load key points from file"""
     keypts = np.fromfile(os.path.join(keyptspath, filename + '.keypts.bin'), dtype=np.float32)
     num_keypts = int(keypts[0])
     keypts = keypts[1:].reshape([num_keypts, 3])
@@ -15,6 +19,7 @@ def get_keypts(keyptspath, filename):
 
 
 def get_desc(descpath, filename, desc_name):
+    """load descriptors from file"""
     if desc_name == '3dmatch':
         desc = np.fromfile(os.path.join(descpath, filename + '.desc.3dmatch.bin'), dtype=np.float32)
         num_desc = int(desc[0])
@@ -29,6 +34,7 @@ def get_desc(descpath, filename, desc_name):
 
 
 def loadlog(gtpath):
+    """load ground truth from file"""
     with open(os.path.join(gtpath, 'gt.log')) as f:
         content = f.readlines()
     result = {}
@@ -60,12 +66,10 @@ if __name__ == '__main__':
     d = get_desc("./ppf_desc_04301124/7-scenes-redkitchen/", "cloud_bin_1", 'ppf')
     assert a.shape == b.shape
     assert a.dtype == b.dtype
-    from geometric_registration.evaluate_ppfnet import calculate_M
-    import time
 
     start_time = time.time()
-    calculate_M(a, b)
+    evaluate_ppfnet.calculate_M(a, b)
     print(time.time() - start_time)
     start_time = time.time()
-    calculate_M(c, d)
+    evaluate_ppfnet.calculate_M(c, d)
     print(time.time() - start_time)

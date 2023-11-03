@@ -1,11 +1,14 @@
+"""Evaluate PPFNet descriptor on 3DMatch dataset."""
+import os
+import time
 import sys
 import open3d
 import numpy as np
-import time
-import os
-from geometric_registration.utils import get_pcd, get_keypts, get_desc, loadlog
-# from scipy.spatial import KDTree
 from sklearn.neighbors import KDTree
+import utils
+
+# from scipy.spatial import KDTree
+
 
 def calculate_M(source_desc, target_desc):
     """
@@ -48,17 +51,18 @@ def calculate_M(source_desc, target_desc):
 
 
 def register2Fragments(id1, id2, keyptspath, descpath, resultpath, desc_name='ppf'):
+    """Register 2 fragments and save the result."""
     cloud_bin_s = f'cloud_bin_{id1}'
     cloud_bin_t = f'cloud_bin_{id2}'
     write_file = f'{cloud_bin_s}_{cloud_bin_t}.rt.txt'
     if os.path.exists(os.path.join(resultpath, write_file)):
   #      print(f"{write_file} already exists.")
         return 0, 0, 0
-    source_keypts = get_keypts(keyptspath, cloud_bin_s)
-    target_keypts = get_keypts(keyptspath, cloud_bin_t)
+    source_keypts = utils.get_keypts(keyptspath, cloud_bin_s)
+    target_keypts = utils.get_keypts(keyptspath, cloud_bin_t)
     # print(source_keypts.shape)
-    source_desc = get_desc(descpath, cloud_bin_s, desc_name=desc_name)
-    target_desc = get_desc(descpath, cloud_bin_t, desc_name=desc_name)
+    source_desc = utils.get_desc(descpath, cloud_bin_s, desc_name=desc_name)
+    target_desc = utils.get_desc(descpath, cloud_bin_t, desc_name=desc_name)
     source_desc = np.nan_to_num(source_desc)
     target_desc = np.nan_to_num(target_desc)
 
@@ -88,6 +92,7 @@ def register2Fragments(id1, id2, keyptspath, descpath, resultpath, desc_name='pp
 
 
 def read_register_result(id1, id2):
+    """Read the result of registration."""
     cloud_bin_s = f'cloud_bin_{id1}'
     cloud_bin_t = f'cloud_bin_{id2}'
     with open(os.path.join(resultpath, f'{cloud_bin_s}_{cloud_bin_t}.rt.txt'), 'r') as f:

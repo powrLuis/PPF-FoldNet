@@ -1,16 +1,17 @@
+"""
+This module defines the SunDataset class, which is a subclass of torch.utils.data.Dataset.
+It is used to load the 3DMatch dataset and return local patches of point clouds on the fly.
+"""
 import os
 import os.path
-import open3d
-import numpy as np
 import time
-from tqdm import tqdm
-import json
-import numpy
-import torch.utils.data as data
-from input_preparation import *
+import numpy as np
+from torch.utils import data
+from input_preparation import get_local_patches_on_the_fly
 
 
 class SunDataset(data.Dataset):
+    """3DMatch dataset."""
     def __init__(self,
                  root,
                  split='train',
@@ -74,8 +75,8 @@ class SunDataset(data.Dataset):
 
 if __name__ == '__main__':
 
-    datapath = "/data/3DMatch/whole"
-    d = SunDataset(root=datapath, split='test', on_the_fly=True)
+    DATAPATH = "/data/3DMatch/whole"
+    d = SunDataset(root=DATAPATH, split='test', on_the_fly=True)
     print(len(d.ids_list))
     # print(d.scene_list)
     start_time = time.time()
@@ -85,13 +86,13 @@ if __name__ == '__main__':
             print(f"{i} : {time.time() - start_time} s")
     print(f"Test set On the fly: {time.time() - start_time}")
 
-    datapath = "/data/3DMatch/whole"
-    d = SunDataset(root=datapath, split='train', on_the_fly=True)
+    DATAPATH = "/data/3DMatch/whole"
+    d = SunDataset(root=DATAPATH, split='train', on_the_fly=True)
     print(len(d.ids_list))
     # print(d.scene_list)
     start_time = time.time()
     for i in range(len(d.ids_list)):
-        patches, id = d[i]
+        patches, patch_id = d[i]
         if i % 100 == 0:
             print(f"{i}: {time.time() - start_time} s")
     print(f"Training set On the fly: {time.time() - start_time}")

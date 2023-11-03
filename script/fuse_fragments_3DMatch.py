@@ -1,18 +1,21 @@
+"""fuse rgbd frames into fragments in 3DMatch"""
 from __future__ import print_function
 from __future__ import division
 
-from pathlib import Path
+import sys
 import argparse
 import math
-import numpy as np
 import os.path as osp
-import sys
+import numpy as np
+import open3d as o3d
+from joblib import Parallel, delayed
+import utils.io as uio
 
 ROOT_DIR = osp.abspath('../')
 if ROOT_DIR not in sys.path:
     sys.path.append(ROOT_DIR)
 
-from utils import io as uio
+
 
 
 # ---------------------------------------------------------------------------- #
@@ -21,14 +24,14 @@ from utils import io as uio
 # - Save colors & normals
 # ---------------------------------------------------------------------------- #
 def read_intrinsic(filepath, width, height):
-    import open3d as o3d
-
+    """Read intrinsic matrix from txt file"""
     m = np.loadtxt(filepath, dtype=np.float32)
     intrinsic = o3d.camera.PinholeCameraIntrinsic(width, height, m[0, 0], m[1, 1], m[0, 2], m[1, 2])
     return intrinsic
 
 
 def read_extrinsic(filepath):
+    """Read extrinsic matrix from txt file"""
     m = np.loadtxt(filepath, dtype=np.float32)
     if np.isnan(m).any():
         return None
@@ -36,7 +39,7 @@ def read_extrinsic(filepath):
 
 
 def read_rgbd_image(cfg, color_file, depth_file, convert_rgb_to_intensity):
-    import open3d as o3d
+    """Read RGBD image from files"""
     if color_file is None:
         color_file = depth_file # to avoid "Unsupported image format."
         # rgbd_image = o3d.RGBDImage()
@@ -50,17 +53,16 @@ def read_rgbd_image(cfg, color_file, depth_file, convert_rgb_to_intensity):
 
 
 def process_single_fragment(cfg, color_files, depth_files, frag_id, n_frags, intrinsic_path, out_folder):
-    import open3d as o3d
-
+    """Process a single fragment"""
     depth_only_flag = (len(color_files) == 0)
     n_frames = len(depth_files)
     intrinsic = read_intrinsic(intrinsic_path, cfg.width, cfg.height)
     if depth_only_flag:
-        color_type = o3d.integration.TSDFVolumeColorType.__dict__['None']
+        color_type = o3d.pipelines.integration.TSDFVolumeColorType.__dict__['None']
     else:
-        color_type = o3d.integration.TSDFVolumeColorType.__dict__['RGB8']
+        color_type = o3d.pipelines.integration.TSDFVolumeColorType.__dict__['RGB8']
         
-    volume = o3d.integration.ScalableTSDFVolume(voxel_length=cfg.tsdf_cubic_size / 512.0,
+    volume = o3d.pipelines.integration.ScalableTSDFVolume(voxel_length=cfg.tsdf_cubic_size / 512.0,
                                                 sdf_trunc=0.04,
                                                 color_type=color_type)
 
@@ -94,7 +96,7 @@ def process_single_fragment(cfg, color_files, depth_files, frag_id, n_frags, int
 
     pcloud = volume.extract_point_cloud()
     o3d.geometry.estimate_normals(pcloud)
-    o3d.write_point_cloud(osp.join(out_folder, 'cloud_bin_{}.ply'.format(frag_id)), pcloud)
+    o3d.io.write_point_cloud(osp.join(out_folder, 'cloud_bin_{}.ply'.format(frag_id)), pcloud)
 
     np.save(osp.join(out_folder, 'cloud_bin_{}.pose.npy'.format(frag_id)), pose_base2world)
 
@@ -103,6 +105,7 @@ def process_single_fragment(cfg, color_files, depth_files, frag_id, n_frags, int
 # Iterate Folders
 # ---------------------------------------------------------------------------- #
 def run_seq(cfg, scene, seq):
+    """Make fragments for a sequence"""
     print("    Start {}".format(seq))
 
     seq_folder = osp.join(cfg.dataset_root, scene, seq)
@@ -122,8 +125,7 @@ def run_seq(cfg, scene, seq):
     intrinsic_path = osp.join(cfg.dataset_root, scene, 'camera-intrinsics.txt')
 
     if cfg.threads > 1:
-        from joblib import Parallel, delayed
-        import multiprocessing
+        
 
         Parallel(n_jobs=cfg.threads)(
             delayed(process_single_fragment)(cfg, color_paths, depth_paths, frag_id, n_frags, intrinsic_path, out_folder)
@@ -137,6 +139,7 @@ def run_seq(cfg, scene, seq):
 
 
 def run_scene(cfg, scene):
+    """Make fragments for a scene"""
     print("  Start scene {} ".format(scene))
 
     scene_folder = osp.join(cfg.dataset_root, scene)
@@ -149,6 +152,7 @@ def run_scene(cfg, scene):
 
 
 def run(cfg):
+    """Make fragments for rgbd scenes in 3DMatch"""
     print("Start making fragments")
 
     uio.may_create_folder(cfg.out_root)
@@ -167,6 +171,7 @@ def run(cfg):
 # Arguments
 # ---------------------------------------------------------------------------- #
 def parse_args():
+    """Parse input arguments."""
     parser = argparse.ArgumentParser()
     parser.add_argument('--dataset_root', default='data/3DMatch/rgbd')
     parser.add_argument('--out_root', default='data/3DMatch/rgbd_fragments/')
@@ -182,5 +187,5 @@ def parse_args():
 
 
 if __name__ == '__main__':
-    cfg = parse_args()
-    run(cfg)
+    confg = parse_args()
+    run(confg)

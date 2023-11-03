@@ -1,18 +1,20 @@
+"""IO utils."""
 from __future__ import division
 from __future__ import print_function
 
 from collections import defaultdict
 from pathlib import Path
-import cv2
 import json
-import numpy as np
 import os
 import os.path as osp
 import re
 import shutil
+import numpy as np
+import cv2
 
 
 def is_number(s):
+    """Check if a string is a number."""
     try:
         float(s)
         return True
@@ -24,6 +26,7 @@ def is_number(s):
 # Common IO
 # ---------------------------------------------------------------------------- #
 def may_create_folder(folder_path):
+    """Create a folder if it does not exist."""
     if not osp.exists(folder_path):
         oldmask = os.umask(000)
         os.makedirs(folder_path, mode=0o777)
@@ -33,6 +36,7 @@ def may_create_folder(folder_path):
 
 
 def make_clean_folder(folder_path):
+    """Create an empty folder if it does not exist, otherwise clean the folder."""
     success = may_create_folder(folder_path)
     if not success:
         shutil.rmtree(folder_path)
@@ -40,12 +44,14 @@ def make_clean_folder(folder_path):
 
 
 def sorted_alphanum(file_list_ordered):
+    """Sort the file list in an alphanumerical way."""
     convert = lambda text: int(text) if text.isdigit() else text
     alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key) if len(c) > 0]
     return sorted(file_list_ordered, key=alphanum_key)
 
 
 def list_files(folder_path, name_filter, sort=True):
+    """List files in a folder by a name filter."""
     file_list = [p.name for p in list(Path(folder_path).glob(name_filter))]
     if sort:
         return sorted_alphanum(file_list)
@@ -54,6 +60,7 @@ def list_files(folder_path, name_filter, sort=True):
 
 
 def list_folders(folder_path, name_filter=None, sort=True):
+    """List folders in a folder by a name filter."""
     folders = list()
     for subfolder in Path(folder_path).iterdir():
         if subfolder.is_dir() and not subfolder.name.startswith('.'):
@@ -80,6 +87,7 @@ def read_lines(file_path):
 
 
 def read_json(filepath):
+    """read json file"""
     with open(filepath, 'r') as fh:
         ret = json.load(fh)
     return ret

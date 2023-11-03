@@ -1,11 +1,13 @@
-import torch
-import torch.optim as optim
-import time, os
+"""The trainer class, handle the training process including snapshot."""
+import os
+import time
 import numpy as np
+import torch
 from tensorboardX import SummaryWriter
 
 
 class Trainer(object):
+    """Trainer for training and testing"""
     def __init__(self, args):
         # parameters
         self.epoch = args.epoch
@@ -38,6 +40,7 @@ class Trainer(object):
             self._load_pretrain(args.pretrain)
 
     def train(self):
+        """Train the model"""
         self.train_hist = {
             'loss': [],
             'per_epoch_time': [],
@@ -74,11 +77,11 @@ class Trainer(object):
 
                 # finish all epoch
         self.train_hist['total_time'].append(time.time() - start_time)
-        print("Avg one epoch time: %.2f, total %d epochs time: %.2f" % (np.mean(self.train_hist['per_epoch_time']),
-                                                                        self.epoch, self.train_hist['total_time'][0]))
+        print(f"Avg one epoch time: {np.mean(self.train_hist['per_epoch_time']):.2f}, total {self.epoch} epochs time: {self.train_hist['total_time'][0]:.2f}")
         print("Training finish!... save training results")
 
     def train_epoch(self, epoch):
+        """Train one epoch"""
         epoch_start_time = time.time()
         loss_buf = []
         num_batch = int(len(self.train_loader.dataset) / self.batch_size)
@@ -111,6 +114,7 @@ class Trainer(object):
         del loss_buf
 
     def evaluate(self, epoch):
+        """Evaluate the model"""
         self.model.eval()
         loss_buf = []
         for iter, (patches, ids) in enumerate(self.test_loader):

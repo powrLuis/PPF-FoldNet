@@ -1,17 +1,22 @@
-import open3d
-import numpy as np
+"""
+This module provides functions to preprocess input data for PPF-FoldNet model.
+It includes functions to convert RGBD images to point clouds, 
+calculate local normals for point clouds, select referenced points, 
+collect local neighbors, and build local patches for each reference point.
+"""
 import os
 import time
-import matplotlib.pyplot as plt
+import numpy as np
+import open3d
 
-open3d.set_verbosity_level(open3d.VerbosityLevel.Error)
-
+open3d.utility.set_verbosity_level(open3d.utility.VerbosityLevel.Error)
 
 def rgbd_to_point_cloud(data_dir, ind, downsample=0.03, aligned=True):
-    pcd = open3d.read_point_cloud(os.path.join(data_dir, f'{ind}.ply'))
+    """rgbd image to point cloud"""
+    pcd = open3d.io.read_point_cloud(os.path.join(data_dir, f'{ind}.ply'))
     # downsample the point cloud
     if downsample != 0:
-        pcd = open3d.voxel_down_sample(pcd, voxel_size=downsample)
+        pcd = pcd.voxel_down_sample(voxel_size=downsample)
     # align the point cloud
     if aligned is True:
         matrix = np.load(os.path.join(data_dir, f'{ind}.pose.npy'))
@@ -19,30 +24,10 @@ def rgbd_to_point_cloud(data_dir, ind, downsample=0.03, aligned=True):
 
     return pcd
 
-    # color_raw = open3d.read_image(f"{data_dir}/{ind}.color.png")
-    # depth_raw = open3d.read_image(f"{data_dir}/{ind}.depth.png")
-    # rgbd_image = open3d.create_rgbd_image_from_color_and_depth(color_raw, depth_raw, depth_trunc=10)
-    # # print(rgbd_image)
-    # intrinstic = open3d.camera.PinholeCameraIntrinsic()
-    # pull_path = os.path.join(data_dir, ind + ".color.png")
-    # prev_dir = pull_path[0: pull_path.find("seq-")]
-    # with open(os.path.join(prev_dir, "camera-intrinsics.txt")) as f:
-    #     content = f.readlines()
-    # fx = float(content[0].split("\t")[0]) / 1
-    # fy = float(content[1].split("\t")[1]) / 1
-    # cx = float(content[0].split("\t")[2]) / 1
-    # cy = float(content[1].split("\t")[2]) / 1
-    # intrinstic.set_intrinsics(640, 480, fx, fy, cx, cy)
-    # matrix = np.loadtxt(f"{data_dir}/{ind}.pose.txt")
-    # pcd = open3d.create_point_cloud_from_rgbd_image(rgbd_image, intrinstic, extrinsic=matrix)
-    # pcd = open3d.voxel_down_sample(pcd, voxel_size=0.05)
-    # if show:
-    #     open3d.draw_geometries([pcd])
-    # return pcd
-
 
 def cal_local_normal(pcd):
-    if open3d.geometry.estimate_normals(pcd, open3d.KDTreeSearchParamKNN(knn=17)):
+    """calculate local normal for point cloud"""
+    if open3d.geometry.estimate_normals(pcd, open3d.geometry.KDTreeSearchParamHybrid(radius=0.1, max_nn=30)):
         return True
     else:
         print("Calculate Normal Error")
@@ -50,7 +35,7 @@ def cal_local_normal(pcd):
 
 
 def select_referenced_point(pcd, num_patches=2048):
-    # A point sampling algorithm for 3d matching of irregular geometries.
+    """A point sampling algorithm for 3d matching of irregular geometries."""
     pts = np.asarray(pcd.points)
     num_points = pts.shape[0]
     inds = np.random.choice(range(num_points), num_patches, replace=False)
@@ -58,8 +43,8 @@ def select_referenced_point(pcd, num_patches=2048):
 
 
 def collect_local_neighbor(ref_pcd, pcd, vicinity=0.3, num_points_per_patch=1024, random_state=None):
-    # collect local neighbor within vicinity for each interest point.
-    # each local patch is downsampled to 1024 (setting of PPFNet p5.)
+    """collect local neighbor within vicinity for each interest point.
+    each local patch is downsampled to 1024 (setting of PPFNet p5.)"""
     kdtree = open3d.geometry.KDTreeFlann(pcd)
     dict = []
     for point in ref_pcd.points:
@@ -81,6 +66,7 @@ def collect_local_neighbor(ref_pcd, pcd, vicinity=0.3, num_points_per_patch=1024
 
 
 def build_local_patch(ref_pcd, pcd, neighbor):
+    """calculate the point pair feature for each patch"""
     num_ref_point = len(ref_pcd.points)
     num_point_per_patch = len(neighbor[0])
     # shape: num_ref_point, num_point_per_patch, 4
@@ -98,6 +84,7 @@ def build_local_patch(ref_pcd, pcd, neighbor):
 
 
 def _ppf(point1, normal1, point2, normal2):
+    """calculate the point pair feature for one pair of points"""
     # origin version: calculate one ppf each time, very SLOW!
     # d = point1 - point2
     # len_d = np.sqrt(np.dot(d, d))
@@ -124,10 +111,10 @@ def _ppf(point1, normal1, point2, normal2):
     return np.array([dim1_, dim2_, dim3_, len_d]).transpose()
 
 
-def input_preprocess(data_dir, id, save_dir):
-    # rgbd -> point cloud
+def input_preprocess(data_dir, local_id, save_dir):
+    """rgbd -> point cloud"""
     # start_time = time.time()
-    pcd = rgbd_to_point_cloud(data_dir, id)
+    pcd = rgbd_to_point_cloud(data_dir, local_id)
     # print("rgbd->pcd: ", time.time() - start_time)
 
     # calculate local normal for point cloud
@@ -137,7 +124,7 @@ def input_preprocess(data_dir, id, save_dir):
     # select referenced points (default number 2048)
     ref_pcd = select_referenced_point(pcd)
     # print("select ref: ", time.time() - start_time)
-    ref_pts = np.asarray(ref_pcd.points)
+    # ref_pts = np.asarray(ref_pcd.points)
     # assert ref_pts.shape[0] == 2048
 
     # collect local patch for each reference point
@@ -153,7 +140,7 @@ def input_preprocess(data_dir, id, save_dir):
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
     np.save(f'{save_dir}/{id}.npy', local_patch.astype(np.float32))
-    open3d.write_point_cloud(f"{save_dir}/{id}.pcd", ref_pcd)
+    open3d.io.write_point_cloud(f"{save_dir}/{id}.pcd", ref_pcd)
 
 
 def get_local_patches_on_the_fly(data_dir, ind, num_patches, num_points_per_patch=1024):
@@ -173,11 +160,11 @@ if __name__ == "__main__":
         scene_list = f.readlines()
     for scene in scene_list:
         scene = scene.replace("\n", "")
-        data_dir = f"./data/3DMatch/rgbd_fragments/{scene}/seq-01"
+        data_directory = f"./data/3DMatch/rgbd_fragments/{scene}/seq-01"
         start_time = time.time()
-        for filename in os.listdir(data_dir):
-            id = filename.split(".")[0]
-            get_local_patches_on_the_fly(data_dir, id, 32, 1024)
+        for filename in os.listdir(data_directory):
+            fragment_id = filename.split(".")[0]
+            get_local_patches_on_the_fly(data_directory, id, 32, 1024)
             print(id)
         print(f"Finish {scene}, time: {time.time() - start_time}")
         break

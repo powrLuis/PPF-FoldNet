@@ -1,22 +1,26 @@
+"""the entrance file, every time I start training, 
+this file will be copied to the snapshot dictionary."""
 import os
 import time
 import shutil
+from torch import optim
 from dataloader import get_dataloader
 from trainer import Trainer
 from loss.chamfer_loss import ChamferLoss
 from models.model_conv1d import PPFFoldNet
-from torch import optim
 
 
 class Args(object):
+    """parameters"""
     def __init__(self):
         self.experiment_id = "PPF-FoldNet" + time.strftime('%m%d%H%M')
-        snapshot_root = 'snapshot/%s' % self.experiment_id
-        tensorboard_root = 'tensorboard/%s' % self.experiment_id
+        snapshot_root = f"snapshot/{self.experiment_id}"
+        tensorboard_root = f"tensorboard/{self.experiment_id}"
         os.makedirs(snapshot_root, exist_ok=True)
         os.makedirs(tensorboard_root, exist_ok=True)
         shutil.copy2(os.path.join('.', 'train.py'), os.path.join(snapshot_root, 'train.py'))
-        shutil.copy2(os.path.join('.', 'models/model_conv1d.py'), os.path.join(snapshot_root, 'model.py'))
+        shutil.copy2(os.path.join('.', 'models/model_conv1d.py'),
+                     os.path.join(snapshot_root, 'model.py'))
         self.epoch = 20
         self.num_patches = 1
         self.num_points_per_patch = 1024  # num of points per patches
@@ -38,21 +42,21 @@ class Args(object):
 
         # dataloader
         self.train_loader = get_dataloader(root=self.data_train_dir,
-                                                      batch_size=self.batch_size,
-                                                      split='train',
-                                                      num_patches=self.num_patches,
-                                                      num_points_per_patch=self.num_points_per_patch,
-                                                      shuffle=True,
-                                                      num_workers=4,
-                                                      )
+                                                    batch_size=self.batch_size,
+                                                    split='train',
+                                                    num_patches=self.num_patches,
+                                                    num_points_per_patch=self.num_points_per_patch,
+                                                    shuffle=True,
+                                                    num_workers=4,
+                                                    )
         self.test_loader = get_dataloader(root=self.data_test_dir,
-                                                     batch_size=self.batch_size,
-                                                     split='test',
-                                                     num_patches=self.num_patches,
-                                                     num_points_per_patch=self.num_points_per_patch,
-                                                     shuffle=False,
-                                                     num_workers=4,
-                                                     )
+                                                    batch_size=self.batch_size,
+                                                    split='test',
+                                                    num_patches=self.num_patches,
+                                                    num_points_per_patch=self.num_points_per_patch,
+                                                    shuffle=False,
+                                                    num_workers=4,
+                                                    )
         print("Training set size:", self.train_loader.dataset.__len__())
         print("Test set size:", self.test_loader.dataset.__len__())
         # snapshot

@@ -1,16 +1,20 @@
-import open3d
+"""
+calculate the descriptor for each interest point provided by 3DMatch Benchmark. 
+(need to calculate the ppf representation for each interest point first)
+"""
 import os
 import sys
 import time
+import importlib
+import open3d
 import numpy as np
 import torch
-
-from geometric_registration.utils import get_pcd, get_keypts
 from input_preparation import _ppf
-import importlib
+import utils
 
 def build_ppf_input(pcd, keypts):
-    kdtree = open3d.KDTreeFlann(pcd)
+    """build ppf input for each interest point"""
+    kdtree = open3d.geometry.KDTreeFlann(pcd)
     keypts_id = []
     for i in range(keypts.shape[0]):
         _, id, _ = kdtree.search_knn_vector_3d(keypts[i], 1)
@@ -21,6 +25,7 @@ def build_ppf_input(pcd, keypts):
 
 
 def collect_local_neighbor(ids, pcd, vicinity=0.3, num_points=1024):
+    """collect local neighbor for each interest point"""
     kdtree = open3d.geometry.KDTreeFlann(pcd)
     res = []
     for id in ids:
@@ -35,6 +40,7 @@ def collect_local_neighbor(ids, pcd, vicinity=0.3, num_points=1024):
 
 
 def build_local_patch(ref_inds, pcd, neighbor):
+    """build local patch for each interest point"""
     open3d.geometry.estimate_normals(pcd)
     num_patches = len(ref_inds)
     num_points_per_patch = len(neighbor[0])
@@ -48,6 +54,7 @@ def build_local_patch(ref_inds, pcd, neighbor):
 
 
 def prepare_ppf_input(pcdpath, ppfpath, keyptspath):
+    """prepare ppf input for each interest point"""
     num_frag = len(os.listdir(pcdpath))
     num_ppf = len(os.listdir(ppfpath))
     if num_frag == num_ppf:
@@ -55,14 +62,15 @@ def prepare_ppf_input(pcdpath, ppfpath, keyptspath):
         return
     for i in range(num_frag):
         filename = 'cloud_bin_' + str(i)
-        pcd = get_pcd(pcdpath, filename)
-        keypts = get_keypts(keyptspath, filename)
+        pcd = utils.get_pcd(pcdpath, filename)
+        keypts = utils.get_keypts(keyptspath, filename)
         local_patches = build_ppf_input(pcd, keypts)  # [num_keypts, 1024, 4]
         np.save(ppfpath + filename + ".ppf.bin", local_patches.astype(np.float32))
         print("save", filename + '.ppf.bin')
 
 
 def generate_descriptor(model, desc_name, pcdpath, ppfpath, ppfdescpath):
+    """generate descriptor for each interest point"""
     model.eval()
     num_frag = len(os.listdir(pcdpath))
     for j in range(num_frag):
@@ -101,8 +109,8 @@ if __name__ == '__main__':
          
     # dynamically load the model from snapshot
     module_file_path = f'/home/xybai/PPF-FoldNet/snapshot/PPF-FoldNet{model_str}/model.py'
-    module_name = 'models'
-    module_spec = importlib.util.spec_from_file_location(module_name, module_file_path)
+    MODULE_NAME = 'models'
+    module_spec = importlib.util.spec_from_file_location(MODULE_NAME, module_file_path)
     module = importlib.util.module_from_spec(module_spec)
     module_spec.loader.exec_module(module)
 

@@ -9,3 +9,10 @@ geometric_registration/pred_result/*
 geometric_registration/fragments/*
 geometric_registration/intermediate-files-real/*
 geometric_registration/ppf_desc*
+/.vs
+/env1
+/env
+/pred_result
+/ppf_desc_11081625
+/gt_result
+*.sln
